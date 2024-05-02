@@ -378,20 +378,30 @@ class CartpoleGym(gym.Env):
             high=np.array([np.inf,   np.inf,  np.inf,  np.inf])
         )
 
-env_name = 'CartpoleSwingUp-v0'
-if env_name in registry.env_specs:
-    del registry.env_specs[env_name]
-register(
-    id=env_name,
-    entry_point=f'{__name__}:CartpoleGym',
-)
+# if env_name in registry.env_specs:
+    # del registry.env_specs[env_name]
+# register(
+    # id=env_name,
+    # entry_point=f'{__name__}:CartpoleGym',
+# )
 
 
 def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
+    env_name = 'CartPole-v1'
+
     env = gym.make(env_name)
+
+    print(env.__dict__)
+    print(env.env)
+    print(dir(env))
+
+
     env.dynamics.reward_fn = reward_fn
-    
     model = PPO("MlpPolicy", env, verbose=0)
     model.learn(total_timesteps=100000)
     model.save("ppo_cartpole")
     return model
+
+
+if __name__ == "__main__":
+    train_cartpole(None)

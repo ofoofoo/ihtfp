@@ -12,7 +12,8 @@ import shutil
 import time 
 from constants import EUREKA_ROOT_DIR, EURIKA_ROOT_DIR
 from gen_cfg import cfg_cartpole
-from gpt_parsing import extract_code, get_complete_env_code
+from gpt_parsing import extract_code, get_reward_function_from_string
+import torch
 
 logging.basicConfig(level=logging.INFO)
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -69,8 +70,24 @@ def run_for_response(cfg, response_content):
     - 
     - 
     """
+    promptData = PromptData(cfg)
     code_string = extract_code(response_content)
     logging.info(f"Code String: \n\n{code_string}")
+
+    reward_func = get_reward_function_from_string(code_string)
+
+    if reward_func is None:
+        logging.info("Failed to extract reward function from GPT output")
+        return
+    
+    if cfg.task == "CartPole":
+        logging.info("Running CartPole")
+        from envs.cartpole_train import train_cartpole
+        model = train_cartpole(reward_func, None)
+        logging.info("Done running Cartpole")
+        logging.info(f"Got model: {model}")
+    
+
 
 
 
@@ -92,8 +109,14 @@ def main(cfg):
 
 
         pass
-
     
+
+def string_to_function():
+    custom_function = """
+def reward(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    return x + y
+    """
+    return get_reward_function_from_string(custom_function)
 
 if __name__ == "__main__":
     config_dict = {
@@ -106,3 +129,6 @@ if __name__ == "__main__":
     task_name = "CartPole-v1"
     cfg = config_dict.get(task_name)
     main(cfg)
+    # test = string_to_function()
+    # result = test(torch.tensor([1, 2]), torch.tensor([3, 4]))
+    # print(result)

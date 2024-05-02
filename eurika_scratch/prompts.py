@@ -2,8 +2,8 @@ from constants import EURIKA_ROOT_DIR
 
 class PromptData:
     def __init__(self, cfg):
-        task_file = f'{EURIKA_ROOT_DIR}/envs/{cfg.training_filename}'
-        self.task_code_string  = self.file_to_string(task_file)
+        self.task_file = f'{EURIKA_ROOT_DIR}/envs/{cfg.training_filename}'
+        self.task_code_string  = self.file_to_string(self.task_file)
 
         prompt_dir = f"{EURIKA_ROOT_DIR}/utils/prompts"
         self.initial_system = self.file_to_string(f'{prompt_dir}/initial_system.txt')

@@ -87,6 +87,14 @@ def run_for_response(cfg, response_content):
         logging.info("Done running Cartpole")
         logging.info(f"Got model: {model}")
     
+    else if cfg.task == "LunarLander":
+        logging.info("Running LunarLander")
+        from envs.lunarlander_train import train_lunarlander
+        model = train_lunarlander(reward_func, None)
+        logging.info("Done running LunarLander")
+        logging.info(f"Got model: {model}")
+
+    
 
 
 
@@ -121,14 +129,8 @@ def reward(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 if __name__ == "__main__":
     config_dict = {
             'CartPole-v1': cfg_cartpole,
-            # 'Humanoid-v4': cfg_humanoid,
-            # "Reacher-v4": cfg_reacher,
-            # "Pusher-v4": cfg_pusher
-            
+            'LunarLander-v2': cfg_lunarlander
         }
     task_name = "CartPole-v1"
     cfg = config_dict.get(task_name)
     main(cfg)
-    # test = string_to_function()
-    # result = test(torch.tensor([1, 2]), torch.tensor([3, 4]))
-    # print(result)

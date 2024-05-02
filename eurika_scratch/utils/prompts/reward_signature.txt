@@ -1,0 +1,4 @@
+@torch.jit.script
+def compute_reward(state: torch.Tensor, control_inputs: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    ...
+    return reward, {}

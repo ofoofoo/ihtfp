@@ -1,0 +1,23 @@
+@torch.jit.script
+def compute_reward(self, q, u):
+    """
+    Calculates the reward for given states and control inputs.
+
+    Parameters:
+    - q (torch.Tensor or np.ndarray): States of the system.
+    - u (torch.Tensor or np.ndarray): Control inputs applied.
+
+    Returns:
+    - torch.Tensor: The calculated rewards for the states and inputs.
+    """
+
+    if isinstance(q, np.ndarray):
+        q = torch.from_numpy(q)
+    if isinstance(u, np.ndarray):
+        u = torch.from_numpy(u)
+
+    angle_term = 0.5*(1-torch.cos(q[...,1]))
+    pos_term = -0.5*torch.pow(q[...,0],2)
+    ctrl_cost = -0.001*(u**2).sum(dim=-1)
+
+    return angle_term + pos_term + ctrl_cost

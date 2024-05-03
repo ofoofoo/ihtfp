@@ -35,9 +35,15 @@ def get_reward_function_from_string(code_string):
     if code_string:
         task_code_string = code_string
         namespace = {}
-        code_string = "import torch\n \n" + code_string
-        exec(code_string, namespace)
-        custom_function = namespace['compute_reward']
-        return custom_function
+        code_string = "import numpy as np\nimport math \n\n" + code_string
+        
+        try:
+            exec(code_string, namespace)
+            custom_function = namespace['compute_reward']
+            return custom_function
+        except:
+            print("Bad code input")
+            return None
+            
     else:
         return None

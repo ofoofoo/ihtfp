@@ -11,7 +11,7 @@ from prompts import PromptData
 import shutil
 import time 
 from constants import EUREKA_ROOT_DIR, EURIKA_ROOT_DIR
-from gen_cfg import cfg_cartpole
+from gen_cfg import cfg_cartpole, cfg_lunarlander
 from gpt_parsing import extract_code, get_reward_function_from_string
 import torch
 
@@ -58,6 +58,7 @@ def get_gpt_responses(cfg):
         total_token += response_cur["usage"]["total_tokens"]
 
     if cfg.sample == 1:
+        logging.info(f"Input: {promptData.messages}\n")
         logging.info(f"Iteration {iter}: GPT Output:\n " + responses[0]["message"]["content"] + "\n")
     
     return responses
@@ -87,7 +88,7 @@ def run_for_response(cfg, response_content):
         logging.info("Done running Cartpole")
         logging.info(f"Got model: {model}")
     
-    else if cfg.task == "LunarLander":
+    elif cfg.task == "LunarLander":
         logging.info("Running LunarLander")
         from envs.lunarlander_train import train_lunarlander
         model = train_lunarlander(reward_func, None)
@@ -95,11 +96,6 @@ def run_for_response(cfg, response_content):
         logging.info(f"Got model: {model}")
 
     
-
-
-
-
-
 def main(cfg):
     # assert(os.getcwd() == EURIKA_ROOT_DIR)
     openai.api_key = os.getenv("OPENAI_API_KEY")

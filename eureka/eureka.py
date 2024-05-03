@@ -184,7 +184,7 @@ def main(cfg):
             shutil.copy(output_file, f"env_iter{iter}_response{response_id}.py")
 
             # Find the freest GPU to run GPU-accelerated RL
-            set_freest_gpu()
+            # set_freest_gpu()
             
             # Execute the python file with flags
             rl_filepath = f"env_iter{iter}_response{response_id}.txt"

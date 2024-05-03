@@ -18,7 +18,7 @@ class cfg_cartpole:
     task_env = "CartPoleEnv"
     task_description = "Balance a pole on a cart by moving the cart left or right."
 
-    model = "gpt-4"  # LLM model (other options are gpt-4, gpt-4-0613, gpt-3.5-turbo-16k-0613)
+    model = "gpt-4-turbo"  # LLM model (other options are gpt-4, gpt-4-0613, gpt-3.5-turbo-16k-0613)
     temperature = 1.0
     suffix = "GPT"  # suffix for generated files (indicates LLM model)
 
@@ -64,7 +64,7 @@ class cfg_lunarlander:
     task_env = "LunarLanderEnv"
     task_description = "Land a rocket on the landing pad."
 
-    model = "gpt-4"  # LLM model (other options are gpt-4, gpt-4-0613, gpt-3.5-turbo-16k-0613)
+    model = "gpt-4-turbo"  # LLM model (other options are gpt-4, gpt-4-0613, gpt-3.5-turbo-16k-0613)
     temperature = 1.0
     suffix = "GPT"  # suffix for generated files (indicates LLM model)
 

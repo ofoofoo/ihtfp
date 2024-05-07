@@ -21,7 +21,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import gymnasium as gym
-from gymnasium import logger, spaces
+from gymnasium import error, logger, spaces
 from gymnasium.envs.classic_control import utils
 from gymnasium.error import DependencyNotInstalled
 from gymnasium.vector import VectorEnv
@@ -30,8 +30,6 @@ from gymnasium.vector.utils import batch_space
 
 from typing import TYPE_CHECKING, Optional
 
-
-from gymnasium import error, spaces
 from gymnasium.error import DependencyNotInstalled
 from gymnasium.utils import EzPickle
 from gymnasium.utils.step_api_compatibility import step_api_compatibility

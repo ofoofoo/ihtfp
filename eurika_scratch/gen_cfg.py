@@ -46,7 +46,7 @@ class cfg_cartpole:
 
 class cfg_lunarlander:
     seed = 0
-    task_name = "LunarLander-v2"
+    task_name = "LunarLander-v3"
     sim_device = "cpu"
     rl_device = "cpu"
     graphics_device_id = 0
@@ -58,9 +58,9 @@ class cfg_lunarlander:
     capture_video_len = 1000
     test = False
     iteration = 10
-    training_filename = "lunar_lander.py"
+    training_filename = "lunarlander_train.py"
     task = "LunarLander"
-    task_name = "LunarLander-v2"
+    task_name = "LunarLander-v3"
     task_env = "LunarLanderEnv"
     task_description = "Land a rocket on the landing pad."
 

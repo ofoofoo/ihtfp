@@ -125,7 +125,7 @@ def reward(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 if __name__ == "__main__":
     config_dict = {
             'CartPole-v1': cfg_cartpole,
-            'LunarLander-v2': cfg_lunarlander
+            'LunarLander-v3': cfg_lunarlander
         }
     task_name = "CartPole-v1"
     cfg = config_dict.get(task_name)

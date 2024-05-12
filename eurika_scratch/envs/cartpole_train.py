@@ -16,6 +16,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 from typing import Optional, Tuple, Union
 import math
+import cv2
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -130,7 +131,7 @@ class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         self, sutton_barto_reward: bool = False, render_mode: Optional[str] = None
     ):
         self._sutton_barto_reward = sutton_barto_reward
-
+        # self.render_frames = []
         self.gravity = 9.8
         self.masscart = 1.0
         self.masspole = 0.1
@@ -238,8 +239,7 @@ class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             else:
                 reward = 0.0
 
-        if self.render_mode == "human":
-            self.render()
+
         # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
         return np.array(self.state, dtype=np.float32), self.reward_fn(self, np.array(self.state, dtype=np.float32), np.array(action, dtype = np.float32)), terminated, False, {}
 
@@ -263,14 +263,6 @@ class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         return np.array(self.state, dtype=np.float32), {}
 
     def render(self):
-        if self.render_mode is None:
-            assert self.spec is not None
-            gym.logger.warn(
-                "You are calling render method without specifying any render mode. "
-                "You can specify the render_mode at initialization, "
-                f'e.g. gym.make("{self.spec.id}", render_mode="rgb_array")'
-            )
-            return
 
         try:
             import pygame
@@ -350,15 +342,11 @@ class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
         self.surf = pygame.transform.flip(self.surf, False, True)
         self.screen.blit(self.surf, (0, 0))
-        if self.render_mode == "human":
-            pygame.event.pump()
-            self.clock.tick(self.metadata["render_fps"])
-            pygame.display.flip()
-
-        elif self.render_mode == "rgb_array":
-            return np.transpose(
-                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
-            )
+        # print(np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2))
+        
+        return np.transpose(
+            np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
+        )
 
     def close(self):
         if self.screen is not None:
@@ -426,7 +414,7 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
 
     env.env.env.reward_fn = reward_fn # wtf
     model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=4000)
     model.save("ppo_cartpole")
 
     del model # remove to demonstrate saving and loading
@@ -435,10 +423,28 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
 
     obs, _ = env.reset()
     done = False
+    frames = []
+    
     while not done:
         action, _states = model.predict(obs)
         obs, rewards, done, info, _ = env.step(action)
-        env.render()
+        frame = env.render()
+        frames.append(frame)
+
+    print("here!")
+    # print(frames[0])
+    # SAVE FRAMES TO A VIDEO FILE HERE
+    # Define the codec and create VideoWriter object
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    video = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 480))
+
+    # Loop over each image and write to the video file
+    for frame in frames:
+        video.write(frame)
+
+    # Release the video writer
+    video.release()
+
     return model
 
 

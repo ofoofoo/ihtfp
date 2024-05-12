@@ -11,7 +11,7 @@ class cfg_cartpole:
     capture_video_freq = 1
     capture_video_len = 1000
     test = False
-    iteration = 10
+    iteration = 1
     training_filename = "cartpole_train.py"
     task = "CartPole"
     task_name = "CartPole-v1"

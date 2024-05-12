@@ -13,7 +13,7 @@ import time
 from constants import EUREKA_ROOT_DIR, EURIKA_ROOT_DIR
 from gen_cfg import cfg_cartpole, cfg_lunarlander
 from gpt_parsing import extract_code, get_reward_function_from_string
-import torch
+# import torch
 
 logging.basicConfig(level=logging.INFO)
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -111,7 +111,7 @@ def main(cfg):
             response_content = responses[response_id]["message"]["content"]
             run_for_response(cfg, response_content)
 
-
+        
         pass
     
 

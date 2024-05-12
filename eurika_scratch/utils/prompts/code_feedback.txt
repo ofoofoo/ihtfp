@@ -1,7 +1,9 @@
 Here is the feedback from the policy that was just trained:
+Here is a list of pairs of (average reward per episode, overall episode fitness):
 {policy_feedback}
-It contains the success rates and reward values of the policy after every epoch of training. Please carefully analyze the policy feedback and provide a new, improved reward function that can better solve the task. Some helpful tips for analyzing the policy feedback:
-    (1) If the success rates are always near zero, then you must rewrite the entire reward function
+We seek to maximize the overall episode fitnesses, and we also want the average reward per episode and overall episode fitness to scale together; ie, if the episode fitness is high, we want our reward feedback to be high. If the episode fitness is low, we want the reward function to be low as well.
+Please carefully analyze this policy feedback and provide a new, improved reward function that can better solve the task. Some helpful tips for analyzing the policy feedback:
+    (1) If the fitness values are always near zero, then you must rewrite the entire reward function
     (2) If the values for a certain reward component are near identical throughout, then this means RL is not able to optimize this component as it is written. You may consider
         (a) Changing its scale or the value of its temperature parameter
         (b) Re-writing the reward component 

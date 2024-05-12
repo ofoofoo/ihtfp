@@ -34,6 +34,91 @@ from gymnasium.error import DependencyNotInstalled
 from gymnasium.utils import EzPickle
 from gymnasium.utils.step_api_compatibility import step_api_compatibility
 
+# old reward function somewhere
+#callback function that applies reward function to every rollout max_time_steps
+#- logs sum of all the rewards over an Episode
+
+
+
+from stable_baselines3.common.callbacks import BaseCallback
+
+class EpisodeStatsCallback(BaseCallback):
+    def __init__(self, verbose=0):
+        super(EpisodeStatsCallback, self).__init__(verbose)
+        self.episode_rewards = []
+        self.total_rewards = 0
+        self.episode_lengths = []
+        self.current_episode_length = 0
+        self.total_rewards_fitness = []
+    
+
+    def reward(self, state, action, done):
+        x, y, vx, vy, angle, angular_velocity, leg1_contact, leg2_contact = state
+
+        # Calculate the shaping reward
+        shaping = (
+            -100 * np.sqrt(state[0] ** 2 + state[1] ** 2) # penalty for distance from origin
+            - 100 * np.sqrt(state[2] ** 2 + state[3] ** 2) # penalty for velocity
+            - 100 * abs(state[4]) # penalty for angle away from vertical
+            + 10 * state[6] # reward for contact of leg 1
+            + 10 * state[7] # reward for contact of leg 2
+        )
+
+        # Calculate the reward difference from the previous step
+        if self.prev_shaping is not None:
+            reward = shaping - self.prev_shaping
+        else:
+            reward = 0
+        
+        self.prev_shaping = shaping
+
+        # Penalize the use of engines
+        m_power = 0.3 if action == 2 else 0
+        s_power = 0.03 if action in [1, 3] else 0
+        reward -= m_power + s_power
+
+        # Add large negative reward for termination conditions
+        if done:
+            if abs(x) >= 1.0:
+                reward -= 100  # Out of bounds
+            else:
+                reward += 100  # Successful landing or awake condition
+
+        return reward
+
+
+    def _on_step(self) -> bool:
+        """
+        This method will be called by the agent for each step in the environment.
+        """
+        reward = self.locals['reward']
+        done = self.locals['done']
+
+        # Add reward to total for the current episode
+        self.total_rewards += reward
+        # Increment current episode length
+        self.current_episode_length += 1
+
+        # Check if the episode is done
+        if done:
+            # Calculate mean reward for the current episode
+            mean_reward = self.total_rewards / self.current_episode_length
+            self.episode_rewards.append(self.total_rewards) # sum of real rewards
+            # Record the length of the episode
+            self.episode_lengths.append(self.current_episode_length)
+            self.total_rewards_fitness.append(reward(self, self.locals['state'], self.locals['action'], self.locals['done']))
+
+            # Print episode stats if verbose is set
+            if self.verbose > 0:
+                print(f"Episode finished. Length: {self.current_episode_length}, Mean Reward: {mean_reward:.2f}")
+
+            # Reset the counters for the next episode
+            self.total_rewards = 0
+            self.current_episode_length = 0
+
+        return True
+
+
 
 try:
     import Box2D
@@ -78,6 +163,7 @@ MAIN_ENGINE_Y_LOCATION = (
 VIEWPORT_W = 600
 VIEWPORT_H = 400
 
+    
 
 class ContactDetector(contactListener):
     def __init__(self, env):
@@ -491,6 +577,8 @@ class LunarLanderNew(gym.Env, EzPickle):
     def _clean_particles(self, all_particle):
         while self.particles and (all_particle or self.particles[0].ttl < 0):
             self.world.DestroyBody(self.particles.pop(0))
+    
+
 
     def step(self, action):
         assert self.lander is not None
@@ -993,8 +1081,10 @@ def train_lunarlander(reward_fn: Callable, pretrained_policy_dict = None):
 
     env = gym.make(env_name, continuous=True)
     env.env.env.reward_fn = reward_fn # wtf
+    stats_callback = EpisodeStatsCallback()
+
     model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=100000)
+    model.learn(total_timesteps=100000, callback=stats_callback)
     model.save("ppo_lunarlander")
 
     del model # remove to demonstrate saving and loading

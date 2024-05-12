@@ -21,6 +21,8 @@ import cv2
 from typing import Optional, Tuple, Union
 import os
 
+import logging
+
 import numpy as np
 
 import gymnasium as gym
@@ -37,15 +39,21 @@ class EpisodeStatsCallback(BaseCallback):
         self.total_rewards = 0
         self.episode_lengths = []
         self.current_episode_length = 0
+        self.entropy_loss = []
+        self.loss = []
+        self.policy_gradient_loss = []
+        self.value_loss = []
+
+
 
     def _on_step(self) -> bool:
         # Add reward to total for current episode
         self.total_rewards += self.locals["rewards"][0]  # Assuming single environment
         # Increment current episode length
         self.current_episode_length += 1
-
         # Check if the episode is done
         if self.locals["dones"][0]:
+            print(self.locals["infos"])
             # Calculate mean reward for the current episode
             mean_reward = self.total_rewards / self.current_episode_length
             self.episode_rewards.append(mean_reward)
@@ -69,10 +77,20 @@ class EpisodeStatsCallback(BaseCallback):
             self.current_episode_length = 0
 
     def get_episode_stats(self):
-        return {
-            "mean_rewards": self.episode_rewards,
-            "episode_lengths": self.episode_lengths
+        stats_dict = {
+            "episode_rewards": self.episode_rewards,
+            "episode_lengths": self.episode_lengths,
+            "entropy_loss": self.entropy_loss,
+            "loss": self.loss,
+            "policy_gradient_loss": self.policy_gradient_loss,
+            "value_loss": self.value_loss
         }
+        return stats_dict
+
+    def dump(self, file_name = "eval_metrics"):
+        import json
+        with open(file_name) as f:
+            f.write(json.dumps(self.get_episode_stats()))
 
 class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     """
@@ -440,7 +458,15 @@ class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         return ...
 
 
-def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
+def train_cartpole(cfg, reward_fn: Callable, pretrained_model=None, index=-1):
+    """""""""
+    Takes in ... as arguments
+
+    Returns
+
+    model, mean_rewards, episode_length
+
+    """
     env_name = 'CartPole-v1'
 
     if env_name in registry:
@@ -452,6 +478,9 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
 
     env = gym.make(env_name)
 
+    if index == -1:
+        logging.warn("Index not set")
+
     # print(env.__dict__)
     # print(env.env)
     # print(env.env.__dict__)
@@ -460,9 +489,13 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
 
     env.env.env.reward_fn = reward_fn # wtf
 
-    model = PPO("MlpPolicy", env, verbose=1)
+    if pretrained_model is None:
+        model = PPO("MlpPolicy", env, verbose=1)
+    else:
+        model = pretrained_model
+
     stats_callback = EpisodeStatsCallback()
-    model.learn(total_timesteps=30000, callback=stats_callback)
+    model.learn(total_timesteps=cfg.tot_timesteps, callback=stats_callback)
 
     # Access the lengths of episodes collected during the training. We use these as our fitness function, which we want to maximize
     episode_stats = stats_callback.get_episode_stats()
@@ -484,7 +517,7 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
     # SAVE FRAMES TO A VIDEO FILE HERE
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    video = cv2.VideoWriter('output.avi', fourcc, 20.0, (600, 400))
+    video = cv2.VideoWriter(f'output_{index}.avi', fourcc, 20.0, (600, 400))
 
     # Loop over each image and write to the video file
     for frame in frames:
@@ -493,7 +526,7 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
     # Release the video writer
     video.release()
 
-    return episode_stats["mean_rewards"], episode_stats["episode_lengths"]
+    return model, episode_stats["mean_rewards"], episode_stats["episode_lengths"]
 
 
 if __name__ == "__main__":

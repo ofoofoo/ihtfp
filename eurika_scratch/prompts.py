@@ -17,6 +17,10 @@ class PromptData:
         
         self.initial_system = self.initial_system.format(task_reward_signature_string=self.reward_signature) + self.code_output_tip
         self.initial_user = self.initial_user.format(task_obs_code_string=self.task_code_string, task_description=cfg.task_description)
+
+        self.code_feedback = self.file_to_string(f'{prompt_dir}/code_feedback.txt')
+
+
         self.messages = [{"role": "system", "content": self.initial_system}, {"role": "user", "content": self.initial_user}]
 
     def file_to_string(self, file_path):

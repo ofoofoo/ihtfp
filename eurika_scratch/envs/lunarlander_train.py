@@ -1011,4 +1011,4 @@ def train_lunarlander(reward_fn: Callable, pretrained_policy_dict = None):
 
 
 if __name__ == "__main__":
-    train_cartpole(None)
+    train_lunarlander(None)

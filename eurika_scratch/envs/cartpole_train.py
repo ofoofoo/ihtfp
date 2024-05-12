@@ -14,10 +14,12 @@ from gymnasium.envs.registration import registry, register
 from tqdm.notebook import tqdm
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.callbacks import BaseCallback
 from typing import Optional, Tuple, Union
 import math
 import cv2
 from typing import Optional, Tuple, Union
+import os
 
 import numpy as np
 
@@ -27,6 +29,50 @@ from gymnasium.envs.classic_control import utils
 from gymnasium.error import DependencyNotInstalled
 from gymnasium.vector import VectorEnv
 from gymnasium.vector.utils import batch_space
+
+class EpisodeStatsCallback(BaseCallback):
+    def __init__(self, verbose=0):
+        super(EpisodeStatsCallback, self).__init__(verbose)
+        self.episode_rewards = []
+        self.total_rewards = 0
+        self.episode_lengths = []
+        self.current_episode_length = 0
+
+    def _on_step(self) -> bool:
+        # Add reward to total for current episode
+        self.total_rewards += self.locals["rewards"][0]  # Assuming single environment
+        # Increment current episode length
+        self.current_episode_length += 1
+
+        # Check if the episode is done
+        if self.locals["dones"][0]:
+            # Calculate mean reward for the current episode
+            mean_reward = self.total_rewards / self.current_episode_length
+            self.episode_rewards.append(mean_reward)
+            # Record the length of the episode
+            self.episode_lengths.append(self.current_episode_length)
+
+            # Reset the counters for the next episode
+            self.total_rewards = 0
+            self.current_episode_length = 0
+
+        return True
+
+    def _on_rollout_end(self):
+        # Check for unaccounted rewards and lengths if rollout ends abruptly
+        if self.current_episode_length > 0:
+            mean_reward = self.total_rewards / self.current_episode_length
+            self.episode_rewards.append(mean_reward)
+            self.episode_lengths.append(self.current_episode_length)
+            # Reset the counters
+            self.total_rewards = 0
+            self.current_episode_length = 0
+
+    def get_episode_stats(self):
+        return {
+            "mean_rewards": self.episode_rewards,
+            "episode_lengths": self.episode_lengths
+        }
 
 class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     """
@@ -413,30 +459,32 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
     # print(env.env.env.__dict__)
 
     env.env.env.reward_fn = reward_fn # wtf
+
     model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=4000)
+    stats_callback = EpisodeStatsCallback()
+    model.learn(total_timesteps=30000, callback=stats_callback)
+
+    # Access the lengths of episodes collected during the training. We use these as our fitness function, which we want to maximize
+    episode_stats = stats_callback.get_episode_stats()
     model.save("ppo_cartpole")
-
-    del model # remove to demonstrate saving and loading
-
-    model = PPO.load("ppo_cartpole")
 
     obs, _ = env.reset()
     done = False
     frames = []
     
-    while not done:
+    steps = 0
+    while not done and steps < 200:
         action, _states = model.predict(obs)
         obs, rewards, done, info, _ = env.step(action)
+        steps += 1
         frame = env.render()
         frames.append(frame)
-
-    print("here!")
+    
     # print(frames[0])
     # SAVE FRAMES TO A VIDEO FILE HERE
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    video = cv2.VideoWriter('output.avi', fourcc, 20.0, (640, 480))
+    video = cv2.VideoWriter('output.avi', fourcc, 20.0, (600, 400))
 
     # Loop over each image and write to the video file
     for frame in frames:
@@ -445,8 +493,8 @@ def train_cartpole(reward_fn: Callable, pretrained_policy_dict = None):
     # Release the video writer
     video.release()
 
-    return model
+    return episode_stats["mean_rewards"], episode_stats["episode_lengths"]
 
 
 if __name__ == "__main__":
-    train_cartpole(None)
+    fitness_function = train_cartpole(None)

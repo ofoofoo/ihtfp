@@ -84,9 +84,13 @@ def run_for_response(cfg, response_content):
     if cfg.task == "CartPole":
         logging.info("Running CartPole")
         from envs.cartpole_train import train_cartpole
-        model = train_cartpole(reward_func, None)
+        fitness_values, avg_rewards = train_cartpole(reward_func, None)
+        fitness_values = fitness_values[:750]
+        avg_rewards = fitness_values[:750]
         logging.info("Done running Cartpole")
-        logging.info(f"Got model: {model}")
+        logging.info(f"Average fitness value across training episodes: {fitness_values} and number of episodes: {len(fitness_values)}")
+        return fitness_values, avg_rewards
+        
     
     elif cfg.task == "LunarLander":
         logging.info("Running LunarLander")
@@ -109,7 +113,8 @@ def main(cfg):
         for response_id in range(len(responses)):
             logging.info(f"Iteration {iter}: Processing Code Run {response_id}")
             response_content = responses[response_id]["message"]["content"]
-            run_for_response(cfg, response_content)
+            fitness_values, avg_rewards = run_for_response(cfg, response_content)
+            
 
 
         pass
@@ -127,6 +132,6 @@ if __name__ == "__main__":
             'CartPole-v1': cfg_cartpole,
             'LunarLander-v3': cfg_lunarlander
         }
-    task_name = "LunarLander-v3"
+    task_name = "CartPole-v1"
     cfg = config_dict.get(task_name)
     main(cfg)

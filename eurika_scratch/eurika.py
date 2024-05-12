@@ -111,7 +111,7 @@ def main(cfg):
             response_content = responses[response_id]["message"]["content"]
             run_for_response(cfg, response_content)
 
-        
+
         pass
     
 
@@ -127,6 +127,6 @@ if __name__ == "__main__":
             'CartPole-v1': cfg_cartpole,
             'LunarLander-v3': cfg_lunarlander
         }
-    task_name = "CartPole-v1"
+    task_name = "LunarLander-v3"
     cfg = config_dict.get(task_name)
     main(cfg)

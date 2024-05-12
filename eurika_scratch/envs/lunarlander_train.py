@@ -100,7 +100,7 @@ class ContactDetector(contactListener):
                 self.env.legs[i].ground_contact = False
 
 
-class LunarLander(gym.Env, EzPickle):
+class LunarLanderNew(gym.Env, EzPickle):
     """
     ## Description
     This environment is a classic rocket trajectory optimization problem.
@@ -988,7 +988,7 @@ def train_lunarlander(reward_fn: Callable, pretrained_policy_dict = None):
             del registry[env_name]
     register(
         id=env_name,
-        entry_point=f'{__name__}:CartPoleEnvNew',
+        entry_point=f'{__name__}:LunarLanderNew',
     )
 
     env = gym.make(env_name, continuous=True)

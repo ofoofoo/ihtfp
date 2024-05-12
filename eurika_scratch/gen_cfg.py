@@ -57,7 +57,7 @@ class cfg_lunarlander:
     capture_video_freq = 1
     capture_video_len = 1000
     test = False
-    iteration = 10
+    iteration = 1
     training_filename = "lunarlander_train.py"
     task = "LunarLander"
     task_name = "LunarLander-v3"

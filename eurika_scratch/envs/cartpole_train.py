@@ -53,7 +53,6 @@ class EpisodeStatsCallback(BaseCallback):
         self.current_episode_length += 1
         # Check if the episode is done
         if self.locals["dones"][0]:
-            print(self.locals["infos"])
             # Calculate mean reward for the current episode
             mean_reward = self.total_rewards / self.current_episode_length
             self.episode_rewards.append(mean_reward)

@@ -33,6 +33,7 @@ from gymnasium.vector import VectorEnv
 from gymnasium.vector.utils import batch_space
 
 class EpisodeStatsCallback(BaseCallback):
+    gamma_val = 0.999
     def __init__(self, verbose=0):
         super(EpisodeStatsCallback, self).__init__(verbose)
         self.episode_rewards = []
@@ -57,7 +58,7 @@ class EpisodeStatsCallback(BaseCallback):
             mean_reward = self.total_rewards / self.current_episode_length
             self.episode_rewards.append(mean_reward)
             # Record the length of the episode
-            self.episode_lengths.append(self.current_episode_length)
+            self.episode_lengths.append((1 - (self.gamma_val ** self.current_episode_length))/(1 - self.gamma_val))
 
             # Reset the counters for the next episode
             self.total_rewards = 0
@@ -457,7 +458,7 @@ class CartPoleEnvNew(gym.Env[np.ndarray, Union[int, np.ndarray]]):
         return ...
 
 
-def train_cartpole(cfg, reward_fn: Callable, pretrained_model=None, index=-1):
+def train_cartpole(cfg, reward_fn: Callable, pretrained_model=None, index=-1, eureka_base = False):
     """""""""
     Takes in ... as arguments
 
@@ -505,7 +506,7 @@ def train_cartpole(cfg, reward_fn: Callable, pretrained_model=None, index=-1):
     frames = []
     
     steps = 0
-    while not done and steps < 200:
+    while not done and steps < 1000:
         action, _states = model.predict(obs)
         obs, rewards, done, info, _ = env.step(action)
         steps += 1
@@ -516,7 +517,7 @@ def train_cartpole(cfg, reward_fn: Callable, pretrained_model=None, index=-1):
     # SAVE FRAMES TO A VIDEO FILE HERE
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    video = cv2.VideoWriter(f'output_{index}.avi', fourcc, 20.0, (600, 400))
+    video = cv2.VideoWriter(f'cartpole_output_{index}.avi', fourcc, 20.0, (600, 400))
 
     # Loop over each image and write to the video file
     for frame in frames:
@@ -524,8 +525,8 @@ def train_cartpole(cfg, reward_fn: Callable, pretrained_model=None, index=-1):
 
     # Release the video writer
     video.release()
-
-    return model, episode_stats["mean_rewards"], episode_stats["episode_lengths"]
+    print(episode_stats["episode_lengths"])
+    return model, episode_stats["episode_lengths"], episode_stats["episode_rewards"], [steps]
 
 
 if __name__ == "__main__":

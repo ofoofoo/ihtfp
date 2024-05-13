@@ -11,9 +11,9 @@ class cfg_cartpole:
     capture_video_freq = 1
     capture_video_len = 1000
     test = False
-    iteration = 1
+    iteration = 5
     tot_timesteps = 4000
-    top_k = 1
+    top_k = 2 # how much variance we want in choosing the parents
     training_filename = "cartpole_train.py"
     task = "CartPole"
     task_name = "CartPole-v1"
@@ -25,7 +25,7 @@ class cfg_cartpole:
     suffix = "GPT"  # suffix for generated files (indicates LLM model)
 
     # Eureka parameters
-    iteration = 1 # how many iterations of Eureka to run
+    iteration = 5 # how many iterations of Eureka to run
     sample = 1 # number of Eureka samples to generate per iteration
     max_iterations = 3000 # RL Policy training iterations (decrease this to make the feedback loop faster)
     num_eval = 5 # number of evaluation episodes to run for the final reward
@@ -59,7 +59,9 @@ class cfg_lunarlander:
     capture_video_freq = 1
     capture_video_len = 1000
     test = False
-    iteration = 1
+    iteration = 8
+    tot_timesteps = 15000
+    top_k = 1 # how much variance we want in choosing the parents (which parents generate children)
     training_filename = "lunarlander_train.py"
     task = "LunarLander"
     task_name = "LunarLander-v3"
@@ -71,10 +73,10 @@ class cfg_lunarlander:
     suffix = "GPT"  # suffix for generated files (indicates LLM model)
 
     # Eureka parameters
-    iteration = 1 # how many iterations of Eureka to run
+    iteration = 8 # how many iterations of Eureka to run
     sample = 1 # number of Eureka samples to generate per iteration
-    max_iterations = 3000 # RL Policy training iterations (decrease this to make the feedback loop faster)
-    num_eval = 5 # number of evaluation episodes to run for the final reward
+    max_iterations = 25000 # RL Policy training iterations (decrease this to make the feedback loop faster)
+    num_eval = 8 # number of evaluation episodes to run for the final reward
     capture_video = False # whether to capture policy rollout videos
 
     train_params = {

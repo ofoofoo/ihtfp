@@ -19,6 +19,8 @@ import math
 from typing import Optional, Tuple, Union
 
 import numpy as np
+import cv2
+import logging
 
 import gymnasium as gym
 from gymnasium import error, logger, spaces
@@ -49,12 +51,14 @@ class EpisodeStatsCallback(BaseCallback):
         self.total_rewards = 0
         self.episode_lengths = []
         self.current_episode_length = 0
-        self.total_rewards_fitness = []
+        self.cur_fitness = 0
+        self.episode_fitness = []
+        self.prev_shaping = None
     
 
     def reward(self, state, action, done):
         x, y, vx, vy, angle, angular_velocity, leg1_contact, leg2_contact = state
-
+        reward = 0
         # Calculate the shaping reward
         shaping = (
             -100 * np.sqrt(state[0] ** 2 + state[1] ** 2) # penalty for distance from origin
@@ -73,9 +77,9 @@ class EpisodeStatsCallback(BaseCallback):
         self.prev_shaping = shaping
 
         # Penalize the use of engines
-        m_power = 0.3 if action == 2 else 0
-        s_power = 0.03 if action in [1, 3] else 0
-        reward -= m_power + s_power
+        m_power = (np.clip(action[0], 0.0, 1.0) + 1.0) * 0.5  # 0.5..1.0
+        s_power = np.clip(np.abs(action[1]), 0.5, 1.0)
+        #reward -= 0.30 * m_power + 0.03 * s_power
 
         # Add large negative reward for termination conditions
         if done:
@@ -86,16 +90,17 @@ class EpisodeStatsCallback(BaseCallback):
 
         return reward
 
-
     def _on_step(self) -> bool:
         """
         This method will be called by the agent for each step in the environment.
         """
-        reward = self.locals['reward']
-        done = self.locals['done']
+        reward = self.locals['rewards'][0]
+        done = self.locals['dones'][0]
 
         # Add reward to total for the current episode
         self.total_rewards += reward
+        #print(self.training_env.get_attr('state')[0], self.locals['actions'][0], self.locals['dones'][0])
+        self.cur_fitness += self.reward(self.training_env.get_attr('state')[0], self.locals['actions'][0], self.locals['dones'][0])
         # Increment current episode length
         self.current_episode_length += 1
 
@@ -106,7 +111,7 @@ class EpisodeStatsCallback(BaseCallback):
             self.episode_rewards.append(self.total_rewards) # sum of real rewards
             # Record the length of the episode
             self.episode_lengths.append(self.current_episode_length)
-            self.total_rewards_fitness.append(reward(self, self.locals['state'], self.locals['action'], self.locals['done']))
+            self.episode_fitness.append(self.cur_fitness)
 
             # Print episode stats if verbose is set
             if self.verbose > 0:
@@ -115,10 +120,18 @@ class EpisodeStatsCallback(BaseCallback):
             # Reset the counters for the next episode
             self.total_rewards = 0
             self.current_episode_length = 0
+            self.cur_fitness = 0
+            self.prev_shaping = None
 
         return True
 
-
+    def get_episode_stats(self):
+        stats_dict = {
+            "episode_rewards": self.episode_rewards,
+            "episode_lengths": self.episode_lengths,
+            "episode_fitness": self.episode_fitness
+        }
+        return stats_dict
 
 try:
     import Box2D
@@ -320,7 +333,7 @@ class LunarLanderNew(gym.Env, EzPickle):
 
     def __init__(
         self,
-        render_mode: Optional[str] = None,
+        render_mode: Optional[str] = "rgb_array",
         continuous: bool = False,
         gravity: float = -10.0,
         enable_wind: bool = False,
@@ -733,7 +746,7 @@ class LunarLanderNew(gym.Env, EzPickle):
         pos = self.lander.position
         vel = self.lander.linearVelocity
 
-        state = [
+        self.state = [
             (pos.x - VIEWPORT_W / SCALE / 2) / (VIEWPORT_W / SCALE / 2),
             (pos.y - (self.helipad_y + LEG_DOWN / SCALE)) / (VIEWPORT_H / SCALE / 2),
             vel.x * (VIEWPORT_W / SCALE / 2) / FPS,
@@ -743,7 +756,7 @@ class LunarLanderNew(gym.Env, EzPickle):
             1.0 if self.legs[0].ground_contact else 0.0,
             1.0 if self.legs[1].ground_contact else 0.0,
         ]
-        assert len(state) == 8
+        assert len(self.state) == 8
 
         # reward = 0
         # shaping = (
@@ -764,7 +777,7 @@ class LunarLanderNew(gym.Env, EzPickle):
         # reward -= s_power * 0.03
 
         terminated = False
-        if self.game_over or abs(state[0]) >= 1.0:
+        if self.game_over or abs(self.state[0]) >= 1.0:
             terminated = True
         if not self.lander.awake:
             terminated = True
@@ -772,7 +785,7 @@ class LunarLanderNew(gym.Env, EzPickle):
         if self.render_mode == "human":
             self.render()
         # truncation=False as the time limit is handled by the `TimeLimit` wrapper added during `make`
-        return np.array(state, dtype=np.float32), self.reward_fn(self, np.array(state, dtype=np.float32), np.array(action, dtype=np.float32)), terminated, False, {}
+        return np.array(self.state, dtype=np.float32), self.reward_fn(self, np.array(self.state, dtype=np.float32), np.array(action, dtype=np.float32)), terminated, False, {}
 
     def render(self):
         if self.render_mode is None:
@@ -982,84 +995,6 @@ class LunarLanderNew(gym.Env, EzPickle):
 
         return ...
 
-def heuristic(env, s):
-    """
-    The heuristic for
-    1. Testing
-    2. Demonstration rollout.
-
-    Args:
-        env: The environment
-        s (list): The state. Attributes:
-            s[0] is the horizontal coordinate
-            s[1] is the vertical coordinate
-            s[2] is the horizontal speed
-            s[3] is the vertical speed
-            s[4] is the angle
-            s[5] is the angular speed
-            s[6] 1 if first leg has contact, else 0
-            s[7] 1 if second leg has contact, else 0
-
-    Returns:
-         a: The heuristic to be fed into the step function defined above to determine the next step and reward.
-    """
-
-    angle_targ = s[0] * 0.5 + s[2] * 1.0  # angle should point towards center
-    if angle_targ > 0.4:
-        angle_targ = 0.4  # more than 0.4 radians (22 degrees) is bad
-    if angle_targ < -0.4:
-        angle_targ = -0.4
-    hover_targ = 0.55 * np.abs(
-        s[0]
-    )  # target y should be proportional to horizontal offset
-
-    angle_todo = (angle_targ - s[4]) * 0.5 - (s[5]) * 1.0
-    hover_todo = (hover_targ - s[1]) * 0.5 - (s[3]) * 0.5
-
-    if s[6] or s[7]:  # legs have contact
-        angle_todo = 0
-        hover_todo = (
-            -(s[3]) * 0.5
-        )  # override to reduce fall speed, that's all we need after contact
-
-    if env.unwrapped.continuous:
-        a = np.array([hover_todo * 20 - 1, -angle_todo * 20])
-        a = np.clip(a, -1, +1)
-    else:
-        a = 0
-        if hover_todo > np.abs(angle_todo) and hover_todo > 0.05:
-            a = 2
-        elif angle_todo < -0.05:
-            a = 3
-        elif angle_todo > +0.05:
-            a = 1
-    return a
-
-
-def demo_heuristic_lander(env, seed=None, render=False):
-    total_reward = 0
-    steps = 0
-    s, info = env.reset(seed=seed)
-    while True:
-        a = heuristic(env, s)
-        s, r, terminated, truncated, info = step_api_compatibility(env.step(a), True)
-        total_reward += r
-
-        if render:
-            still_open = env.render()
-            if still_open is False:
-                break
-
-        if steps % 20 == 0 or terminated or truncated:
-            print("observations:", " ".join([f"{x:+0.2f}" for x in s]))
-            print(f"step {steps} total_reward {total_reward:+0.2f}")
-        steps += 1
-        if terminated or truncated:
-            break
-    if render:
-        env.close()
-    return total_reward
-
 
 class LunarLanderContinuous:
     def __init__(self):
@@ -1070,7 +1005,43 @@ class LunarLanderContinuous:
             'gym.make("LunarLander-v3", continuous=True)'
         )
 
-def train_lunarlander(reward_fn: Callable, pretrained_policy_dict = None):
+def fitness_function(state, action, done, prev_shaping):
+    x, y, vx, vy, angle, angular_velocity, leg1_contact, leg2_contact = state
+    reward = 0
+    # Calculate the shaping reward
+    shaping = (
+        -100 * np.sqrt(state[0] ** 2 + state[1] ** 2) # penalty for distance from origin
+        - 100 * np.sqrt(state[2] ** 2 + state[3] ** 2) # penalty for velocity
+        - 100 * abs(state[4]) # penalty for angle away from vertical
+        + 10 * state[6] # reward for contact of leg 1
+        + 10 * state[7] # reward for contact of leg 2
+    )
+
+    # Calculate the reward difference from the previous step
+    if prev_shaping is not None:
+        reward = shaping - prev_shaping
+    else:
+        reward = 0
+    
+    prev_shaping = shaping
+
+    # Penalize the use of engines
+    m_power = (np.clip(action[0], 0.0, 1.0) + 1.0) * 0.5  # 0.5..1.0
+    s_power = np.clip(np.abs(action[1]), 0.5, 1.0)
+    #reward -= 0.30 * m_power + 0.03 * s_power
+
+    # Add large negative reward for termination conditions
+    if done:
+        if abs(x) >= 1.0:
+            reward -= 100  # Out of bounds
+        else:
+            reward += 100  # Successful landing or awake condition
+
+    return reward, prev_shaping
+    
+def train_lunarlander(cfg, reward_fn: Callable, pretrained_model=None, index=-1, eureka_base = False):
+
+
     env_name = 'LunarLander-v3'
     if env_name in registry:
             del registry[env_name]
@@ -1080,24 +1051,60 @@ def train_lunarlander(reward_fn: Callable, pretrained_policy_dict = None):
     )
 
     env = gym.make(env_name, continuous=True)
+    if index == -1:
+        logging.warn("Index not set")
+
     env.env.env.reward_fn = reward_fn # wtf
+
+    if pretrained_model is None:
+        model = PPO("MlpPolicy", env, verbose=1)
+    else:
+        model = pretrained_model
+
     stats_callback = EpisodeStatsCallback()
-
-    model = PPO("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=100000, callback=stats_callback)
+    model.learn(total_timesteps=cfg.tot_timesteps, callback=stats_callback)
+    episode_stats = stats_callback.get_episode_stats()
     model.save("ppo_lunarlander")
+    best_eval = 0
+    all_evals = []
 
-    del model # remove to demonstrate saving and loading
+    for num_eval in range(cfg.num_eval):
+        obs, _ = env.reset()
+        done = False
+        frames = []
+        cur_fitness = 0
+        
+        steps = 0
+        prev_shaping = None
+        while not done:
+            action, _states = model.predict(obs)
+            obs, rewards, done, info, _ = env.step(action)
+            new_fitness, prev_shaping = fitness_function(obs, action, False, prev_shaping)
+            cur_fitness += new_fitness
+            steps += 1
+            frame = env.render()
+            frames.append(frame)
+        
+        print(f"Current Fitness: {cur_fitness}")
+        # SAVE FRAMES TO A VIDEO FILE HERE
+        # Define the codec and create VideoWriter object
+        if cur_fitness > best_eval:
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            video = cv2.VideoWriter(f'lunarlander_output_{index}.avi', fourcc, 20.0, (600, 400))
 
-    model = PPO.load("ppo_lunarlander")
+            # Loop over each image and write to the video file
+            for frame in frames:
+                video.write(frame)
 
-    obs, _ = env.reset()
-    done = False
-    while not done:
-        action, _states = model.predict(obs)
-        obs, rewards, done, info, _ = env.step(action)
-        env.render()
-    return model
+            # Release the video writer
+            video.release()
+        best_eval = max(cur_fitness, best_eval)
+        all_evals.append(cur_fitness)
+        
+    #print(episode_stats["episode_fitness"])
+    print(best_eval)
+    return model, episode_stats["episode_fitness"], episode_stats["episode_rewards"], all_evals
+    #return model
 
 
 if __name__ == "__main__":

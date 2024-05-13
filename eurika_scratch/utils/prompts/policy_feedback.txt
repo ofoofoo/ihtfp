@@ -1,1 +1,12 @@
-We trained a RL policy using the provided reward function code and tracked the values of the individual components in the reward function as well as global policy metrics such as success rates and episode lengths after every {epoch_freq} epochs and the maximum, mean, minimum values encountered:
+Here is the feedback from the policy that was just trained:
+Here is a list of overall episode fitness per episode and a list of average reward per episode:
+{policy_feedback}
+We seek to maximize the overall episode fitnesses, and we also want the average reward per episode and overall episode fitness to scale together; ie, if the episode fitness for a certain episode is high, we want our reward feedback for that episode to be high. If the episode fitness is low, we want the reward function to be low as well. Note that the magnitudes of the rewards and the fitness function do NOT have to be of the same magnitude, though.
+Please carefully analyze this policy feedback and provide a new, improved reward function that can better solve the task. Some helpful tips for analyzing the policy feedback:
+    (1) If the fitness values are always near zero, then you must rewrite the entire reward function
+    (2) If the values for a certain reward component are near identical throughout, then this means RL is not able to optimize this component as it is written. You may consider
+        (a) Changing its scale or the value of its temperature parameter
+        (b) Re-writing the reward component 
+        (c) Discarding the reward component
+    (3) If some reward components' magnitude is significantly larger, then you must re-scale its value to a proper range
+Please analyze each existing reward component in the suggested manner above first, and then write the reward function code. 
